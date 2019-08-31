@@ -12,7 +12,7 @@ import subprocess
 from pyhap.accessory_driver import AccessoryDriver
 from pyhap import camera
 
-logging.basicConfig(level=logging.DEBUG, format="[%(module)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="[%(module)s] %(message)s")
 logger = logging.getLogger('main')
 
 STREAM_CMD = (
