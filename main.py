@@ -1,8 +1,7 @@
-"""An example of how to setup and start an Accessory.
-This is:
-1. Create the Accessory object you want.
-2. Add it to an AccessoryDriver, which will advertise it on the local network,
-    setup a server to answer client queries, etc.
+"""Main entry point
+
+We setup a custom subclass to interface with the Pi camera better, and then
+start it jsut like the docs.
 """
 import asyncio
 import logging
@@ -16,23 +15,18 @@ from pyhap import camera
 logging.basicConfig(level=logging.DEBUG, format="[%(module)s] %(message)s")
 logger = logging.getLogger('main')
 
-FFMPEG_CMD = (
-    # pylint: disable=bad-continuation
+STREAM_CMD = (
+    # Use raspivid, as it can take advantage of the Pi's h264 encoding hardware
     "raspivid -n -ih -t 0 -ex auto -w {width} -h {height} -fps {fps} "
     " -b {v_max_bitrate} -o - "
+    # Dump video to ffmpeg, which can do all the hairy STRP stuff
     "| ffmpeg -i - -c:v copy "
     "-payload_type 99 -ssrc {v_ssrc} -f rtp "
     "-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params {v_srtp_key} "
     "'srtp://{address}:{v_port}?rtcpport={v_port}&"
     "localrtcpport={v_port}&pkt_size=1378'"
 )
-'''Template for the ffmpeg command.'''
-
-class ClassName(object):
-    """docstring for ClassName"""
-    def __init__(self, arg):
-        super(ClassName, self).__init__()
-        self.arg = arg
+'''Template for the command.'''
 
 
 class PiCamera(camera.Camera):
@@ -42,15 +36,17 @@ class PiCamera(camera.Camera):
         self.logger = logging.getLogger('PiCamera')
 
     def get_snapshot(self, image_size):  # pylint: disable=no-self-use
+        """Use the raspistill command to capture a snapshot.
+        """
         cmd = ["raspistill",
                 "-n", # No preview
                 "-t", "2000", # 2 seconds to warm up
                 "-ex", "auto", # auto exposure
                 "-mm", "average", # metering mode, average
                 "-drc", "med", # do some dynamic range compression
-                "-w", str(image_size["image-width"]),
-                "-h", str(image_size["image-height"]),
-                "-o", "-"]
+                "-w", str(image_size["image-width"]), # width
+                "-h", str(image_size["image-height"]), # height
+                "-o", "-"] # output to stdout
         self.logger.debug("Executing image capture command: %s", ' '.join(cmd))
         raspistill = subprocess.run(["raspistill",
                                      "-n", # No preview
@@ -68,6 +64,12 @@ class PiCamera(camera.Camera):
         return raspistill.stdout
 
     async def start_stream(self, session_info, stream_config):
+        """Start the stream.
+
+        Overriding this is necessary beecuse we use a shell to pipe data between
+        raspivid and ffmpeg, which means we need a process group and
+        create_process_shell instead of create_process_exec
+        """
         stream_config['v_max_bitrate'] *= 1000 # kbps to bps conversion
 
         self.logger.debug('[%s] Starting stream with the following parameters: %s',
@@ -81,7 +83,7 @@ class PiCamera(camera.Camera):
                     stderr=asyncio.subprocess.PIPE,
                     limit=1024,
                     start_new_session=True)
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:
             self.logger.error('Failed to start streaming process because of error: %s', e)
             return False
 
@@ -95,13 +97,8 @@ class PiCamera(camera.Camera):
     async def stop_stream(self, session_info):  # pylint: disable=no-self-use
         """Stop the stream for the given ``session_id``.
 
-        This method can be implemented if custom stop stream commands are needed. The
-        default implementation gets the ``process`` value from the ``session_info``
-        object and terminates it (assumes it is a ``subprocess.Popen`` object).
-
-        :param session_info: The session info object. Available keys:
-            - id - The session ID.
-        :type session_info: ``dict``
+        We implement this because we need to stop the whole process group, not
+        just one process.
         """
         session_id = session_info['id']
         ffmpeg_process = session_info.get('process')
@@ -148,12 +145,12 @@ options = {
             [480, 360, 30],
         ],
     },
-    "audio": {
+    "audio": { #audio is left blank, because I don't have a mic hooked up.
         "codecs": [ ],
     },
     "srtp": True,
     "address": "172.24.0.30",
-    "start_stream_cmd": FFMPEG_CMD,
+    "start_stream_cmd": STREAM_CMD,
 }
 
 
