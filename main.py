@@ -18,9 +18,9 @@ logger = logging.getLogger('main')
 STREAM_CMD = (
     # Use raspivid, as it can take advantage of the Pi's h264 encoding hardware
     "raspivid -n -ih -t 0 -ex auto -w {width} -h {height} -fps {fps} "
-    " -b {v_max_bitrate} -o - "
+    "-lev 4 -pf {profile} -b {v_max_bitrate} -o - "
     # Dump video to ffmpeg, which can do all the hairy STRP stuff
-    "| ffmpeg -i - -c:v copy "
+    "| ffmpeg -re -i - -c:v copy "
     "-payload_type 99 -ssrc {v_ssrc} -f rtp "
     "-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params {v_srtp_key} "
     "'srtp://{address}:{v_port}?rtcpport={v_port}&"
@@ -71,6 +71,7 @@ class PiCamera(camera.Camera):
         create_process_shell instead of create_process_exec
         """
         stream_config['v_max_bitrate'] *= 1000 # kbps to bps conversion
+        stream_config['profile'] = ('baseline', 'main', 'high')[ord(stream_config['v_profile_id'])]
 
         self.logger.debug('[%s] Starting stream with the following parameters: %s',
                       session_info['id'], stream_config)
@@ -109,7 +110,7 @@ class PiCamera(camera.Camera):
                 os.killpg(pgid, signal.SIGTERM)
                 _, stderr = await asyncio.wait_for(
                     ffmpeg_process.communicate(), timeout=2.0)
-                self.logger.debug('Stream command stderr: %s', stderr)
+                self.logger.debug('Stream command stderr: %s', stderr.decode('utf-8'))
             except asyncio.TimeoutError:
                 self.logger.error('Timeout while waiting for the stream process '
                                   'to terminate. Trying with kill.')
@@ -131,18 +132,22 @@ options = {
                 camera.VIDEO_CODEC_PARAM_PROFILE_ID_TYPES["HIGH"]
             ],
             "levels": [
-                camera.VIDEO_CODEC_PARAM_LEVEL_TYPES['TYPE3_1'],
-                camera.VIDEO_CODEC_PARAM_LEVEL_TYPES['TYPE3_2'],
-                camera.VIDEO_CODEC_PARAM_LEVEL_TYPES['TYPE4_0'],
+                camera.VIDEO_CODEC_PARAM_LEVEL_TYPES['TYPE4_0']
             ],
         },
         "resolutions": [
             # Width, Height, framerate
-            [352, 240, 15], # Required for Apple Watch
-            [1920, 1080, 30],
-            [1280, 720, 30],
-            [854, 480, 30],
-            [480, 360, 30],
+            [1920, 1080, 25], # 16x9
+            [1280, 720, 25],
+            [640, 360, 25],
+            [480, 270, 25],
+            [480, 270, 25],
+            [320, 180, 25],
+            [1280, 960, 25], # 4:3
+            [1024, 768, 25],
+            [640, 480, 25],
+            [480, 360, 25],
+            [320, 240, 25],
         ],
     },
     "audio": { #audio is left blank, because I don't have a mic hooked up.
