@@ -40,7 +40,7 @@ class PiCamera(camera.Camera):
         """
         cmd = ["raspistill",
                 "-n", # No preview
-                "-t", "2000", # 2 seconds to warm up
+                "-t", "200", # 200 milliseconds to warm up
                 "-ex", "auto", # auto exposure
                 "-mm", "average", # metering mode, average
                 "-drc", "med", # do some dynamic range compression
@@ -48,16 +48,7 @@ class PiCamera(camera.Camera):
                 "-h", str(image_size["image-height"]), # height
                 "-o", "-"] # output to stdout
         self.logger.debug("Executing image capture command: %s", ' '.join(cmd))
-        raspistill = subprocess.run(["raspistill",
-                                     "-n", # No preview
-                                     "-t", "2000", # 2 seconds to warm up
-                                     "-ex", "auto", # auto exposure
-                                     "-mm", "average", # metering mode, average
-                                     "-drc", "med", # do some dynamic range compression
-                                     "-w", str(image_size["image-width"]),
-                                     "-h", str(image_size["image-height"]),
-                                     "-o", "-"], # output to stdout
-                                     capture_output=True) # ensure we grab stdout
+        raspistill = subprocess.run(cmd, capture_output=True) # ensure we grab stdout
         output = raspistill.stderr.decode('utf-8').strip()
         if output:
             self.logger.error("Error in still output: %s", output)
