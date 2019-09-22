@@ -1,7 +1,7 @@
 """Main entry point
 
 We setup a custom subclass to interface with the Pi camera better, and then
-start it jsut like the docs.
+start it just like the docs.
 """
 import asyncio
 import logging
@@ -35,7 +35,7 @@ class PiCamera(camera.Camera):
         super(PiCamera, self).__init__(*args, **kwargs)
         self.logger = logging.getLogger('PiCamera')
 
-    def get_snapshot(self, image_size):  # pylint: disable=no-self-use
+    def get_snapshot(self, image_size):
         """Use the raspistill command to capture a snapshot.
         """
         cmd = ["raspistill",
