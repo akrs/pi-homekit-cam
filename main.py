@@ -17,9 +17,15 @@ logger = logging.getLogger('main')
 
 STREAM_CMD = (
     # Use raspivid, as it can take advantage of the Pi's h264 encoding hardware
-    "raspivid -n -ih -t 0 -ex auto -w {width} -h {height} -fps {fps} "
-    "-lev 4 -pf {profile} -b {v_max_bitrate} -o - "
-    # Dump video to ffmpeg, which can do all the hairy STRP stuff
+    "raspivid -n " # No preview
+    "-ih " # Insert PPS, SPS headers - needed for FFMPEG
+    "-t 0 " # run forever
+    "-ex auto " # auto expose
+     "-drc med", # do some dynamic range compression
+    "-w {width} -h {height} -fps {fps} " # set width, height, fps
+    "-lev 4 -pf {profile} -b {v_max_bitrate} " # setup the h.264 parameters
+    "-o - " # Dump to stdout
+    # ffmpeg, does all the hairy STRP stuff
     "| ffmpeg -re -i - -c:v copy "
     "-payload_type 99 -ssrc {v_ssrc} -f rtp "
     "-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params {v_srtp_key} "
