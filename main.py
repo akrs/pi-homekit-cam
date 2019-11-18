@@ -21,7 +21,7 @@ STREAM_CMD = (
     "-ih " # Insert PPS, SPS headers - needed for FFMPEG
     "-t 0 " # run forever
     "-ex auto " # auto expose
-     "-drc med ", # do some dynamic range compression
+    "-drc med " # do some dynamic range compression
     "-w {width} -h {height} -fps {fps} " # set width, height, fps
     "-lev 4 -pf {profile} -b {v_max_bitrate} " # setup the h.264 parameters
     "-o - " # Dump to stdout
@@ -100,8 +100,8 @@ class PiCamera(camera.Camera):
         """
         session_id = session_info['id']
         ffmpeg_process = session_info.get('process')
-        pgid = os.getpgid(ffmpeg_process.pid)
         if ffmpeg_process:
+            pgid = os.getpgid(ffmpeg_process.pid)
             self.logger.info('[%s] Stopping stream.', session_id)
             try:
                 os.killpg(pgid, signal.SIGTERM)
